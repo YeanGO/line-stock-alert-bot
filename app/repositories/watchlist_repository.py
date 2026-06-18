@@ -54,7 +54,7 @@ def get_morning_watchlist(
             Watchlist.is_active.is_(True),
             Watchlist.rule_type == rule_type,
             Watchlist.stock_symbol == stock_symbol,
-            (Watchlist.line_target_id == line_target_id) | (Watchlist.line_user_id == line_target_id),
+            Watchlist.line_target_id == line_target_id,
         )
         .one_or_none()
     )
@@ -148,7 +148,7 @@ def list_morning_watchlists(db: Session, line_target_id: str, rule_type: str = "
             Watchlist.is_active.is_(True),
             Watchlist.rule_type == rule_type,
             Watchlist.stock_symbol != "__MARKET__",
-            (Watchlist.line_target_id == line_target_id) | (Watchlist.line_user_id == line_target_id),
+            Watchlist.line_target_id == line_target_id,
         )
         .order_by(Watchlist.stock_symbol.asc())
         .all()
@@ -179,7 +179,7 @@ def deactivate_morning_watchlist(
             Watchlist.is_active.is_(True),
             Watchlist.rule_type == rule_type,
             Watchlist.stock_symbol == stock_symbol,
-            (Watchlist.line_target_id == line_target_id) | (Watchlist.line_user_id == line_target_id),
+            Watchlist.line_target_id == line_target_id,
         )
         .all()
     )
@@ -194,7 +194,7 @@ def list_target_watchlists(db: Session, line_target_id: str) -> list[Watchlist]:
         db.query(Watchlist)
         .filter(
             Watchlist.is_active.is_(True),
-            (Watchlist.line_target_id == line_target_id) | (Watchlist.line_user_id == line_target_id),
+            Watchlist.line_target_id == line_target_id,
         )
         .order_by(Watchlist.created_at.desc())
         .all()
@@ -213,7 +213,7 @@ def deactivate_target_stock_watchlists(db: Session, line_target_id: str, stock_s
     rows = (
         db.query(Watchlist)
         .filter(
-            (Watchlist.line_target_id == line_target_id) | (Watchlist.line_user_id == line_target_id),
+            Watchlist.line_target_id == line_target_id,
             Watchlist.stock_symbol == stock_symbol,
             Watchlist.is_active.is_(True),
         )

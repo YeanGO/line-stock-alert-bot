@@ -118,6 +118,40 @@ def test_dev_command_can_manage_morning_watchlist_with_custom_time() -> None:
     assert "已刪除早盤急漲低量監控 2330" in delete_response.json()["reply"]
 
 
+def test_group_morning_watchlist_is_not_listed_in_personal_chat() -> None:
+    user_id = f"U_TEST_SCOPE_{uuid4().hex}"
+    group_id = f"C_TEST_SCOPE_{uuid4().hex}"
+    with TestClient(app) as client:
+        client.post(
+            "/webhook/dev-command",
+            params={
+                "line_user_id": user_id,
+                "line_target_id": group_id,
+                "target_type": "group",
+                "text": "監控早盤 2330",
+            },
+        )
+        group_list_response = client.post(
+            "/webhook/dev-command",
+            params={
+                "line_user_id": user_id,
+                "line_target_id": group_id,
+                "target_type": "group",
+                "text": "早盤清單",
+            },
+        )
+        personal_list_response = client.post(
+            "/webhook/dev-command",
+            params={
+                "line_user_id": user_id,
+                "text": "早盤清單",
+            },
+        )
+
+    assert "2330" in group_list_response.json()["reply"]
+    assert personal_list_response.json()["reply"] == "目前沒有早盤急漲低量監控股票"
+
+
 def test_dev_command_can_manage_morning_market_scan_setting_and_schedule() -> None:
     user_id = f"U_TEST_MARKET_{uuid4().hex}"
     with TestClient(app) as client:

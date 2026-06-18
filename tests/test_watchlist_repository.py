@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.repositories.watchlist_repository import (
+    create_morning_watchlist,
     create_watchlist_from_command,
     deactivate_target_stock_watchlists,
     get_or_create_morning_market_watchlist,
@@ -90,3 +91,19 @@ def test_internal_market_watchlist_is_hidden_from_morning_lists() -> None:
 
     assert list_morning_watchlists(session, "U_MARKET") == []
     assert list_active_morning_watchlists(session) == []
+
+
+def test_group_morning_watchlist_does_not_appear_in_creator_personal_list() -> None:
+    session = make_session()
+
+    group_watchlist = create_morning_watchlist(
+        db=session,
+        line_user_id="U_CREATOR",
+        line_target_id="C_GROUP",
+        target_type="group",
+        stock_symbol="2330.TW",
+        created_by_user_id="U_CREATOR",
+    )
+
+    assert [row.id for row in list_morning_watchlists(session, "C_GROUP")] == [group_watchlist.id]
+    assert list_morning_watchlists(session, "U_CREATOR") == []
