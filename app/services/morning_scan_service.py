@@ -124,13 +124,16 @@ def evaluate_morning_symbol(
 
     close = frame["Close"].dropna()
     volume = frame["Volume"].dropna()
-    if len(close) < 2 or len(volume) < window_minutes:
+    valid_index = close.index.intersection(volume.index)
+    close = close.loc[valid_index]
+    volume = volume.loc[valid_index]
+    if len(close) < 2:
         return None
 
     price_now = float(close.iloc[-1])
     close_window = close.tail(window_minutes)
     base_price = float(close_window.min())
-    volume_window = float(volume.tail(window_minutes).sum())
+    volume_window = float(volume.loc[close_window.index].sum())
     if base_price <= 0 or pd.isna(price_now) or pd.isna(volume_window):
         return None
 

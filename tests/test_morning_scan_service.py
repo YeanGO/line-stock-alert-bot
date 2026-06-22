@@ -62,6 +62,23 @@ def test_evaluate_morning_symbol_hits_gain_and_low_volume() -> None:
     assert hit.window_minutes == 20
 
 
+def test_evaluate_morning_symbol_uses_partial_opening_window_before_full_window() -> None:
+    index = pd.date_range("2026-06-18 09:00", periods=4, freq="min", tz="Asia/Taipei")
+    frame = pd.DataFrame(
+        {"Close": [100.0, 101.0, 104.0, 108.0], "Volume": [100_000.0, 150_000.0, 200_000.0, 250_000.0]},
+        index=index,
+    )
+
+    hit = evaluate_morning_symbol("2330.TW", frame, gain_threshold=0.05, volume_limit_lots=5000, window_minutes=45)
+
+    assert hit is not None
+    assert hit.price_now == 108
+    assert hit.base_price == 100
+    assert round(hit.gain_20m, 2) == 0.08
+    assert hit.volume_lots == 700
+    assert hit.window_minutes == 45
+
+
 def test_evaluate_morning_symbol_uses_lowest_close_in_window() -> None:
     index = pd.date_range("2026-06-18 09:00", periods=21, freq="min", tz="Asia/Taipei")
     frame = pd.DataFrame(
