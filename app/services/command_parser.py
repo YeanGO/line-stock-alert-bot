@@ -4,26 +4,18 @@ from app.schemas.command import ParsedCommand
 
 
 _ADD_ALIASES = {"追蹤", "新增", "加入"}
-_MOMENTUM_ADD_ALIASES = {"動能追蹤", "盤中追蹤"}
-_MORNING_ADD_ALIASES = {"早盤急漲", "急漲低量", "監控早盤"}
-_MORNING_LIST_ALIASES = {"早盤清單", "早盤急漲清單"}
-_MORNING_DELETE_ALIASES = {"刪除早盤", "取消早盤", "刪除急漲"}
+_MORNING_ADD_ALIASES = {"監控早盤"}
+_MORNING_LIST_ALIASES = {"早盤清單"}
+_MORNING_DELETE_ALIASES = {"刪除早盤"}
 _MORNING_ENABLE_MARKET_ALIASES = {"開啟早盤全市場"}
 _MORNING_DISABLE_MARKET_ALIASES = {"關閉早盤全市場"}
 _MORNING_SETTING_ALIASES = {"早盤設定"}
-_MORNING_SET_MARKET_TIME_ALIASES = {"設定早盤全市場時間", "設定早盤時間"}
-_MORNING_SET_MARKET_CONDITION_ALIASES = {"設定早盤全市場條件", "設定早盤條件"}
+_MORNING_SET_MARKET_TIME_ALIASES = {"設定早盤全市場時間"}
+_MORNING_SET_MARKET_CONDITION_ALIASES = {"設定早盤全市場條件"}
 _LIST_ALIASES = {"查看追蹤", "追蹤清單", "清單", "list"}
 _HELP_ALIASES = {"help", "幫助", "說明"}
 _STATUS_ALIASES = {"狀態", "status"}
-_DELETE_ALIASES = {"刪除", "移除", "取消", "取消動能"}
-
-DEFAULT_MOMENTUM_PERCENT = 8.0
-DEFAULT_MOMENTUM_MAX_VOLUME_LOTS = 2500.0
-DEFAULT_MOMENTUM_WINDOW_MINUTES = 20
-DEFAULT_MOMENTUM_WEEKDAYS = "3,4"
-DEFAULT_MOMENTUM_START_TIME = "09:00"
-DEFAULT_MOMENTUM_END_TIME = "10:30"
+_DELETE_ALIASES = {"刪除", "移除", "取消"}
 
 
 class CommandParseError(ValueError):
@@ -72,27 +64,6 @@ def parse_time_range(text: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 
-def _parse_optional_schedule(parts: list[str], start_index: int) -> tuple[str, str, str]:
-    active_weekdays = DEFAULT_MOMENTUM_WEEKDAYS
-    monitor_start_time = DEFAULT_MOMENTUM_START_TIME
-    monitor_end_time = DEFAULT_MOMENTUM_END_TIME
-    extras = parts[start_index:]
-    if len(extras) == 1:
-        monitor_start_time, monitor_end_time = parse_time_range(extras[0])
-    elif len(extras) >= 2:
-        active_weekdays = parse_weekdays(extras[0])
-        monitor_start_time, monitor_end_time = parse_time_range(extras[1])
-    return active_weekdays, monitor_start_time, monitor_end_time
-
-
-def _is_number(value: str) -> bool:
-    try:
-        float(value)
-    except ValueError:
-        return False
-    return True
-
-
 def parse_command(text: str, stock_symbol_suffix: str = ".TW") -> ParsedCommand:
     raw_text = text.strip()
     if not raw_text:
@@ -118,14 +89,10 @@ def parse_command(text: str, stock_symbol_suffix: str = ".TW") -> ParsedCommand:
         return ParsedCommand(action="status", raw_text=raw_text)
 
     if action in _MORNING_SET_MARKET_TIME_ALIASES:
-        if len(parts) < 2:
-            raise CommandParseError("Morning market time command requires a time range")
-        if len(parts) == 2:
-            active_weekdays = DEFAULT_MOMENTUM_WEEKDAYS
-            monitor_start_time, monitor_end_time = parse_time_range(parts[1])
-        else:
-            active_weekdays = parse_weekdays(parts[1])
-            monitor_start_time, monitor_end_time = parse_time_range(parts[2])
+        if len(parts) != 3:
+            raise CommandParseError("Morning market time command requires weekdays and a time range")
+        active_weekdays = parse_weekdays(parts[1])
+        monitor_start_time, monitor_end_time = parse_time_range(parts[2])
         return ParsedCommand(
             action="morning_market_schedule",
             active_weekdays=active_weekdays,
@@ -135,7 +102,7 @@ def parse_command(text: str, stock_symbol_suffix: str = ".TW") -> ParsedCommand:
         )
 
     if action in _MORNING_SET_MARKET_CONDITION_ALIASES:
-        if len(parts) < 4:
+        if len(parts) != 4:
             raise CommandParseError("Morning market condition command requires window, percent, and volume")
         return ParsedCommand(
             action="morning_market_conditions",
@@ -164,53 +131,20 @@ def parse_command(text: str, stock_symbol_suffix: str = ".TW") -> ParsedCommand:
         )
 
     if action in _MORNING_ADD_ALIASES:
-        if len(parts) < 2:
-            raise CommandParseError("Morning command requires a stock symbol")
+        if len(parts) != 7:
+            raise CommandParseError(
+                "Morning command requires stock symbol, window, percent, volume, weekdays, and time range"
+            )
         stock_symbol = normalize_tw_stock_symbol(parts[1], stock_symbol_suffix)
-        window_minutes = DEFAULT_MOMENTUM_WINDOW_MINUTES
-        target_percent = DEFAULT_MOMENTUM_PERCENT
-        max_volume_lots = DEFAULT_MOMENTUM_MAX_VOLUME_LOTS
-        schedule_start_index = 2
-        if len(parts) >= 5 and _is_number(parts[2]) and _is_number(parts[3]) and _is_number(parts[4]):
-            window_minutes = int(parts[2])
-            target_percent = float(parts[3])
-            max_volume_lots = float(parts[4])
-            schedule_start_index = 5
-        active_weekdays, monitor_start_time, monitor_end_time = _parse_optional_schedule(parts, schedule_start_index)
+        active_weekdays = parse_weekdays(parts[5])
+        monitor_start_time, monitor_end_time = parse_time_range(parts[6])
         return ParsedCommand(
             action="morning_add",
             stock_symbol=stock_symbol,
             condition_type="MORNING_GAIN_LOW_VOLUME",
-            target_percent=target_percent,
-            max_volume_lots=max_volume_lots,
-            window_minutes=window_minutes,
-            active_weekdays=active_weekdays,
-            monitor_start_time=monitor_start_time,
-            monitor_end_time=monitor_end_time,
-            raw_text=raw_text,
-        )
-
-    if action in _MOMENTUM_ADD_ALIASES:
-        if len(parts) < 2:
-            raise CommandParseError("Momentum command requires a stock symbol")
-        stock_symbol = normalize_stock_symbol(parts[1], stock_symbol_suffix)
-        target_percent = float(parts[2]) if len(parts) >= 3 else DEFAULT_MOMENTUM_PERCENT
-        max_volume_lots = float(parts[3]) if len(parts) >= 4 else DEFAULT_MOMENTUM_MAX_VOLUME_LOTS
-        window_minutes = int(parts[4]) if len(parts) >= 5 else DEFAULT_MOMENTUM_WINDOW_MINUTES
-        active_weekdays = parse_weekdays(parts[5]) if len(parts) >= 6 else DEFAULT_MOMENTUM_WEEKDAYS
-        if len(parts) >= 7:
-            monitor_start_time, monitor_end_time = parse_time_range(parts[6])
-        else:
-            monitor_start_time = DEFAULT_MOMENTUM_START_TIME
-            monitor_end_time = DEFAULT_MOMENTUM_END_TIME
-
-        return ParsedCommand(
-            action="add",
-            stock_symbol=stock_symbol,
-            condition_type="intraday_momentum_volume_cap",
-            target_percent=target_percent,
-            window_minutes=window_minutes,
-            max_volume_lots=max_volume_lots,
+            target_percent=float(parts[3]),
+            max_volume_lots=float(parts[4]),
+            window_minutes=int(parts[2]),
             active_weekdays=active_weekdays,
             monitor_start_time=monitor_start_time,
             monitor_end_time=monitor_end_time,

@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from zoneinfo import ZoneInfo
 
 from app.models.watchlist import Watchlist
 from app.schemas.stock import StockQuote
@@ -74,52 +73,7 @@ def test_missing_target_does_not_trigger() -> None:
     assert result.triggered is False
 
 
-def test_intraday_momentum_volume_cap_triggered() -> None:
-    taipei_time = datetime(2026, 6, 18, 9, 30, tzinfo=ZoneInfo("Asia/Taipei"))
-    result = evaluate_rule(
-        watchlist(
-            "intraday_momentum_volume_cap",
-            target_percent=8,
-            max_volume_lots=2500,
-            window_minutes=20,
-            active_weekdays="3,4",
-            monitor_start_time="09:00",
-            monitor_end_time="10:30",
-        ),
-        quote(intraday_change_percent=8.5, intraday_volume=2_500_000, updated_at=taipei_time),
-    )
-    assert result.triggered is True
-
-
-def test_intraday_momentum_volume_cap_rejects_high_volume() -> None:
-    taipei_time = datetime(2026, 6, 18, 9, 30, tzinfo=ZoneInfo("Asia/Taipei"))
-    result = evaluate_rule(
-        watchlist(
-            "intraday_momentum_volume_cap",
-            target_percent=8,
-            max_volume_lots=2500,
-            window_minutes=20,
-            active_weekdays="3,4",
-            monitor_start_time="09:00",
-            monitor_end_time="10:30",
-        ),
-        quote(intraday_change_percent=8.5, intraday_volume=2_600_000, updated_at=taipei_time),
-    )
+def test_removed_intraday_momentum_condition_is_unsupported() -> None:
+    result = evaluate_rule(watchlist("intraday_momentum_volume_cap"), quote())
     assert result.triggered is False
-
-
-def test_intraday_momentum_volume_cap_rejects_outside_schedule() -> None:
-    taipei_time = datetime(2026, 6, 17, 9, 30, tzinfo=ZoneInfo("Asia/Taipei"))
-    result = evaluate_rule(
-        watchlist(
-            "intraday_momentum_volume_cap",
-            target_percent=8,
-            max_volume_lots=2500,
-            window_minutes=20,
-            active_weekdays="3,4",
-            monitor_start_time="09:00",
-            monitor_end_time="10:30",
-        ),
-        quote(intraday_change_percent=8.5, intraday_volume=2_500_000, updated_at=taipei_time),
-    )
-    assert result.triggered is False
+    assert "unsupported condition_type" in result.reason

@@ -5,7 +5,6 @@ import pytest
 from app.services.stock_service import (
     StockQuoteFetchError,
     build_mock_quote,
-    get_intraday_momentum_quote,
     get_stock_quote,
     normalize_symbol,
 )
@@ -26,14 +25,6 @@ def test_get_stock_quote_can_use_mock_without_yfinance_network() -> None:
     quote = get_stock_quote("2330", use_mock=True)
     assert isinstance(quote, StockQuote)
     assert quote.stock_symbol == "2330.TW"
-
-
-def test_get_intraday_momentum_quote_can_use_mock_without_yfinance_network() -> None:
-    quote = get_intraday_momentum_quote("2330", window_minutes=20, use_mock=True)
-    assert isinstance(quote, StockQuote)
-    assert quote.stock_symbol == "2330.TW"
-    assert quote.intraday_change_percent is not None
-    assert quote.intraday_volume is not None
 
 
 def test_get_stock_quote_does_not_fallback_to_mock_on_empty_yfinance(monkeypatch: pytest.MonkeyPatch) -> None:

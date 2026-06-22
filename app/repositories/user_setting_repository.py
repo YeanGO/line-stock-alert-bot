@@ -71,14 +71,14 @@ def set_morning_market_scan_schedule(
     set_setting(db, owner_id, MORNING_MARKET_SCAN_WEEKDAYS, weekdays)
 
 
-def get_morning_market_scan_schedule(db: Session, owner_id: str) -> tuple[str, str, str]:
+def get_morning_market_scan_schedule(db: Session, owner_id: str) -> tuple[str | None, str | None, str | None]:
     start = get_setting(db, owner_id, MORNING_MARKET_SCAN_START)
     end = get_setting(db, owner_id, MORNING_MARKET_SCAN_END)
     weekdays = get_setting(db, owner_id, MORNING_MARKET_SCAN_WEEKDAYS)
     return (
-        start.setting_value if start else "09:00",
-        end.setting_value if end else "10:30",
-        weekdays.setting_value if weekdays else "3,4",
+        start.setting_value if start else None,
+        end.setting_value if end else None,
+        weekdays.setting_value if weekdays else None,
     )
 
 
@@ -94,12 +94,12 @@ def set_morning_market_scan_conditions(
     set_setting(db, owner_id, MORNING_MARKET_SCAN_VOLUME_LIMIT_LOTS, str(volume_limit_lots))
 
 
-def get_morning_market_scan_conditions(db: Session, owner_id: str) -> tuple[int, float, float]:
+def get_morning_market_scan_conditions(db: Session, owner_id: str) -> tuple[int | None, float | None, float | None]:
     window = get_setting(db, owner_id, MORNING_MARKET_SCAN_WINDOW_MINUTES)
     gain = get_setting(db, owner_id, MORNING_MARKET_SCAN_GAIN_PERCENT)
     volume = get_setting(db, owner_id, MORNING_MARKET_SCAN_VOLUME_LIMIT_LOTS)
     return (
-        int(window.setting_value) if window else 20,
-        float(gain.setting_value) if gain else 8.0,
-        float(volume.setting_value) if volume else 2500.0,
+        int(window.setting_value) if window else None,
+        float(gain.setting_value) if gain else None,
+        float(volume.setting_value) if volume else None,
     )

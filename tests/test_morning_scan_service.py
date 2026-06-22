@@ -19,6 +19,7 @@ from app.services.morning_scan_service import (
     is_schedule_active,
     merge_scan_symbols,
     normalize_market_symbol,
+    run_morning_gain_low_volume_scan,
 )
 
 
@@ -102,6 +103,9 @@ def test_notify_morning_hit_filters_by_watchlist_and_market_schedule(monkeypatch
         active_weekdays="2,3,4",
         monitor_start_time="09:30",
         monitor_end_time="11:00",
+        window_minutes=20,
+        target_percent=8.0,
+        max_volume_lots=2500.0,
     )
     set_morning_market_scan_enabled(session, "U_MARKET", True)
     set_morning_market_scan_schedule(session, "U_MARKET", "09:30", "11:00", "2,3,4")
@@ -137,3 +141,43 @@ def test_notify_morning_hit_filters_by_watchlist_and_market_schedule(monkeypatch
         now=now,
     )
     assert duplicate_stats["skipped_duplicate"] == 2
+
+
+def test_run_morning_scan_main_loop_notifies_watchlist_hit(monkeypatch) -> None:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    sent: list[tuple[str, str]] = []
+
+    create_morning_watchlist(
+        db=session,
+        line_user_id="U_WATCH",
+        line_target_id="U_WATCH",
+        target_type="user",
+        stock_symbol="2330.TW",
+        active_weekdays="0,1,2,3,4",
+        monitor_start_time="00:00",
+        monitor_end_time="23:59",
+        window_minutes=20,
+        target_percent=8.0,
+        max_volume_lots=2500.0,
+    )
+
+    index = pd.date_range("2026-06-22 09:00", periods=21, freq="min", tz="Asia/Taipei")
+    frame = pd.DataFrame(
+        {"Close": [99.0] + [100.0] + [101.0] * 18 + [108.0], "Volume": [1000.0] + [90_000.0] * 20},
+        index=index,
+    )
+
+    monkeypatch.setattr("app.services.morning_scan_service.is_morning_scan_window", lambda now=None: True)
+    monkeypatch.setattr("app.services.morning_scan_service.load_market_symbols", lambda: [])
+    monkeypatch.setattr("app.services.morning_scan_service.download_morning_batch", lambda symbols: frame)
+    monkeypatch.setattr("app.services.morning_scan_service.push_text", lambda target_id, message: sent.append((target_id, message)))
+
+    result = run_morning_gain_low_volume_scan(session)
+
+    assert result["scanned"] == 1
+    assert result["watchlist_hit_symbols"] == 1
+    assert result["watchlist_notify_users"] == 1
+    assert result["line_success"] == 1
+    assert sent and sent[0][0] == "U_WATCH"

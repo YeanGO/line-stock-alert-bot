@@ -7,6 +7,7 @@ from app.repositories.watchlist_repository import (
     create_watchlist_from_command,
     deactivate_target_stock_watchlists,
     get_or_create_morning_market_watchlist,
+    list_active_watchlists,
     list_active_morning_watchlists,
     list_morning_watchlists,
     list_target_watchlists,
@@ -34,21 +35,6 @@ def test_create_regular_watchlist_uses_regular_cooldown() -> None:
     assert watchlist.is_condition_active is False
     assert watchlist.line_target_id == "U_TEST"
     assert watchlist.target_type == "user"
-
-
-def test_create_dynamic_watchlist_uses_dynamic_cooldown() -> None:
-    session = make_session()
-
-    watchlist = create_watchlist_from_command(
-        db=session,
-        line_user_id="U_TEST",
-        command=parse_command("動能追蹤 2330"),
-        cooldown_minutes=5,
-    )
-
-    assert watchlist.condition_type == "intraday_momentum_volume_cap"
-    assert watchlist.cooldown_minutes == 5
-    assert watchlist.is_condition_active is False
 
 
 def test_group_watchlists_are_scoped_by_target_id() -> None:
@@ -91,6 +77,7 @@ def test_internal_market_watchlist_is_hidden_from_morning_lists() -> None:
 
     assert list_morning_watchlists(session, "U_MARKET") == []
     assert list_active_morning_watchlists(session) == []
+    assert list_active_watchlists(session) == []
 
 
 def test_group_morning_watchlist_does_not_appear_in_creator_personal_list() -> None:
@@ -103,6 +90,12 @@ def test_group_morning_watchlist_does_not_appear_in_creator_personal_list() -> N
         target_type="group",
         stock_symbol="2330.TW",
         created_by_user_id="U_CREATOR",
+        active_weekdays="2,3,4",
+        monitor_start_time="09:30",
+        monitor_end_time="11:00",
+        window_minutes=45,
+        target_percent=5.0,
+        max_volume_lots=5000.0,
     )
 
     assert [row.id for row in list_morning_watchlists(session, "C_GROUP")] == [group_watchlist.id]

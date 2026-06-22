@@ -52,14 +52,13 @@ HELP_TEXT = "\n".join(
         "追蹤 2330 跌幅超過 3",
         "追蹤 2330 成交量放大 2",
         "追蹤 2330 突破均線 MA20",
-        "監控早盤 2330 20 8 2500 週三週四週五 09:30-11:00",
+        "監控早盤 2330 45 5 5000 週一週二 09:00-13:30",
         "早盤清單",
         "刪除早盤 2330",
-        "取消早盤 2330",
         "開啟早盤全市場",
         "關閉早盤全市場",
-        "設定早盤全市場條件 20 8 2500",
-        "設定早盤全市場時間 週三週四週五 09:30-11:00",
+        "設定早盤全市場條件 45 5 5000",
+        "設定早盤全市場時間 週一週二 09:00-13:30",
         "早盤設定",
         "查看追蹤",
         "刪除 2330",
@@ -75,14 +74,6 @@ def _format_watchlist_rows(rows: list) -> str:
 
     lines = ["啟用中的追蹤條件："]
     for row in rows:
-        if row.condition_type == "intraday_momentum_volume_cap":
-            lines.append(
-                f"#{row.id} {row.stock_symbol} 動能追蹤 "
-                f"{row.window_minutes}分鐘漲幅>={row.target_percent}% "
-                f"成交量<={row.max_volume_lots}張 "
-                f"{row.monitor_start_time}-{row.monitor_end_time} weekdays={row.active_weekdays}"
-            )
-            continue
         target = row.target_price or row.target_percent or row.target_multiplier or f"MA{row.ma_period}"
         lines.append(f"#{row.id} {row.stock_symbol} {row.condition_type} {target}")
     return "\n".join(lines)
@@ -96,10 +87,26 @@ def _format_morning_watchlist_rows(rows: list) -> str:
         lines.append(
             f"{row.stock_symbol.replace('.TW', '')} "
             f"{format_weekdays(row.active_weekdays)} {row.monitor_start_time}-{row.monitor_end_time} "
-            f"{row.window_minutes or 20}分鐘漲幅>={row.target_percent or 8}% "
-            f"總成交量<={row.max_volume_lots or 2500}張"
+            f"{row.window_minutes}分鐘漲幅>={row.target_percent}% "
+            f"總成交量<={row.max_volume_lots}張"
         )
     return "\n".join(lines)
+
+
+def _format_market_schedule(start_time: str | None, end_time: str | None, weekdays: str | None) -> str:
+    if not start_time or not end_time or not weekdays:
+        return "未設定"
+    return f"{format_weekdays(weekdays)} {start_time}-{end_time}"
+
+
+def _format_market_conditions(
+    window_minutes: int | None,
+    gain_percent: float | None,
+    volume_limit_lots: float | None,
+) -> str:
+    if window_minutes is None or gain_percent is None or volume_limit_lots is None:
+        return "未設定"
+    return f"{window_minutes}分鐘漲幅 >= {gain_percent}%，總成交量 <= {volume_limit_lots}張"
 
 
 def _format_morning_settings(db: Session, line_user_id: str, target_id: str) -> str:
@@ -110,8 +117,8 @@ def _format_morning_settings(db: Session, line_user_id: str, target_id: str) -> 
     watchlist_text = "\n".join(
         f"{row.stock_symbol.replace('.TW', '')} {format_weekdays(row.active_weekdays)} "
         f"{row.monitor_start_time}-{row.monitor_end_time} "
-        f"{row.window_minutes or 20}分鐘漲幅>={row.target_percent or 8}% "
-        f"總成交量<={row.max_volume_lots or 2500}張"
+        f"{row.window_minutes}分鐘漲幅>={row.target_percent}% "
+        f"總成交量<={row.max_volume_lots}張"
         for row in rows
     )
     if not watchlist_text:
@@ -120,9 +127,8 @@ def _format_morning_settings(db: Session, line_user_id: str, target_id: str) -> 
     return (
         "早盤監控設定：\n"
         f"全市場通知：{status}\n"
-        f"全市場時間：{format_weekdays(weekdays)} {start_time}-{end_time}\n\n"
-        f"全市場條件：{window_minutes}分鐘漲幅 >= {gain_percent}%，"
-        f"總成交量 <= {volume_limit_lots}張\n\n"
+        f"全市場時間：{_format_market_schedule(start_time, end_time, weekdays)}\n\n"
+        f"全市場條件：{_format_market_conditions(window_minutes, gain_percent, volume_limit_lots)}\n\n"
         f"早盤監控清單：\n{watchlist_text}"
     )
 
@@ -158,9 +164,9 @@ def handle_text_command(
         set_morning_market_scan_schedule(
             db,
             target_id,
-            command.monitor_start_time or "09:00",
-            command.monitor_end_time or "10:30",
-            command.active_weekdays or "3,4",
+            command.monitor_start_time,
+            command.monitor_end_time,
+            command.active_weekdays,
         )
         return (
             "已設定早盤全市場時間\n"
@@ -170,14 +176,14 @@ def handle_text_command(
         set_morning_market_scan_conditions(
             db,
             target_id,
-            command.window_minutes or 20,
-            command.target_percent or 8.0,
-            command.max_volume_lots or 2500.0,
+            command.window_minutes,
+            command.target_percent,
+            command.max_volume_lots,
         )
         return (
             "已設定早盤全市場條件\n"
-            f"{command.window_minutes or 20}分鐘漲幅 >= {command.target_percent or 8.0}%，"
-            f"總成交量 <= {command.max_volume_lots or 2500.0}張"
+            f"{command.window_minutes}分鐘漲幅 >= {command.target_percent}%，"
+            f"總成交量 <= {command.max_volume_lots}張"
         )
     if command.action == "morning_settings":
         return _format_morning_settings(db, line_user_id, target_id)
@@ -199,12 +205,12 @@ def handle_text_command(
             target_type=target_type,
             stock_symbol=command.stock_symbol,
             created_by_user_id=line_user_id,
-            active_weekdays=command.active_weekdays or "3,4",
-            monitor_start_time=command.monitor_start_time or "09:00",
-            monitor_end_time=command.monitor_end_time or "10:30",
-            window_minutes=command.window_minutes or 20,
-            target_percent=command.target_percent or 8.0,
-            max_volume_lots=command.max_volume_lots or 2500.0,
+            active_weekdays=command.active_weekdays,
+            monitor_start_time=command.monitor_start_time,
+            monitor_end_time=command.monitor_end_time,
+            window_minutes=command.window_minutes,
+            target_percent=command.target_percent,
+            max_volume_lots=command.max_volume_lots,
         )
         return (
             f"已新增早盤急漲低量監控 {watchlist.stock_symbol.replace('.TW', '')}\n"
@@ -219,11 +225,6 @@ def handle_text_command(
         count = deactivate_target_stock_watchlists(db, target_id, command.stock_symbol)
         return f"已停用 {count} 筆 {command.stock_symbol} 追蹤條件。"
     if command.action == "add":
-        cooldown_minutes = (
-            settings.dynamic_cooldown_minutes
-            if command.condition_type == "intraday_momentum_volume_cap"
-            else settings.default_cooldown_minutes
-        )
         watchlist = create_watchlist_from_command(
             db=db,
             line_user_id=line_user_id,
@@ -231,15 +232,8 @@ def handle_text_command(
             target_type=target_type,
             created_by_user_id=line_user_id,
             command=command,
-            cooldown_minutes=cooldown_minutes,
+            cooldown_minutes=settings.default_cooldown_minutes,
         )
-        if watchlist.condition_type == "intraday_momentum_volume_cap":
-            return (
-                f"已新增動能追蹤 #{watchlist.id}: {watchlist.stock_symbol}\n"
-                f"{watchlist.window_minutes}分鐘漲幅 >= {watchlist.target_percent}%\n"
-                f"成交量 <= {watchlist.max_volume_lots}張\n"
-                f"監控時間 {watchlist.monitor_start_time}-{watchlist.monitor_end_time}"
-            )
         return f"已新增追蹤 #{watchlist.id}: {watchlist.stock_symbol} {watchlist.condition_type}"
 
     return HELP_TEXT

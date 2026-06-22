@@ -207,12 +207,18 @@ def _build_morning_candidates(
 
     for target_id in market_scan_target_ids:
         start_time, end_time, weekdays = get_morning_market_scan_schedule(db, target_id)
+        if not start_time or not end_time or not weekdays:
+            skipped_market_disabled += 1
+            continue
         if not is_schedule_active(weekdays, start_time, end_time, now=now):
             skipped_market_disabled += 1
             continue
         if target_id in candidates:
             continue
         window_minutes, gain_percent, volume_limit_lots = get_morning_market_scan_conditions(db, target_id)
+        if window_minutes is None or gain_percent is None or volume_limit_lots is None:
+            skipped_market_disabled += 1
+            continue
         candidates[target_id] = MorningNotifyCandidate(
             target_id=target_id,
             source_label="全市場掃描",
@@ -332,6 +338,9 @@ def _notify_morning_hit(
 
     for user_id in market_scan_user_ids:
         start_time, end_time, weekdays = get_morning_market_scan_schedule(db, user_id)
+        if not start_time or not end_time or not weekdays:
+            stats["skipped_market_disabled"] += 1
+            continue
         if not is_schedule_active(weekdays, start_time, end_time, now=now):
             stats["skipped_market_disabled"] += 1
             continue
@@ -430,7 +439,7 @@ def run_morning_gain_low_volume_scan(db: Session) -> dict[str, int | float | boo
                     db=db,
                     symbol=symbol,
                     watchlists_by_symbol=watchlists_by_symbol,
-                    market_scan_user_ids=market_scan_user_ids,
+                    market_scan_target_ids=market_scan_user_ids,
                     now=now,
                 )
                 counters["skipped_market_disabled"] += skipped_market_disabled

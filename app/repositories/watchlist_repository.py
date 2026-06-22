@@ -66,14 +66,14 @@ def create_morning_watchlist(
     line_target_id: str,
     target_type: str,
     stock_symbol: str,
+    active_weekdays: str,
+    monitor_start_time: str,
+    monitor_end_time: str,
+    window_minutes: int,
+    target_percent: float,
+    max_volume_lots: float,
     created_by_user_id: str | None = None,
     rule_type: str = "MORNING_GAIN_LOW_VOLUME",
-    active_weekdays: str = "3,4",
-    monitor_start_time: str = "09:00",
-    monitor_end_time: str = "10:30",
-    window_minutes: int = 20,
-    target_percent: float = 8.0,
-    max_volume_lots: float = 2500.0,
 ) -> Watchlist:
     watchlist = Watchlist(
         line_user_id=line_user_id,
@@ -127,12 +127,6 @@ def get_or_create_morning_market_watchlist(
         rule_type=rule_type,
         stock_symbol=stock_symbol,
         condition_type=rule_type,
-        target_percent=8.0,
-        max_volume_lots=2500.0,
-        window_minutes=20,
-        active_weekdays="3,4",
-        monitor_start_time="09:00",
-        monitor_end_time="10:30",
         cooldown_minutes=0,
     )
     db.add(watchlist)
@@ -195,6 +189,8 @@ def list_target_watchlists(db: Session, line_target_id: str) -> list[Watchlist]:
         .filter(
             Watchlist.is_active.is_(True),
             Watchlist.line_target_id == line_target_id,
+            Watchlist.rule_type == "PRICE_ALERT",
+            Watchlist.condition_type != "intraday_momentum_volume_cap",
         )
         .order_by(Watchlist.created_at.desc())
         .all()
@@ -206,7 +202,15 @@ def list_user_watchlists(db: Session, line_user_id: str) -> list[Watchlist]:
 
 
 def list_active_watchlists(db: Session) -> list[Watchlist]:
-    return db.query(Watchlist).filter(Watchlist.is_active.is_(True)).all()
+    return (
+        db.query(Watchlist)
+        .filter(
+            Watchlist.is_active.is_(True),
+            Watchlist.rule_type == "PRICE_ALERT",
+            Watchlist.condition_type != "intraday_momentum_volume_cap",
+        )
+        .all()
+    )
 
 
 def deactivate_target_stock_watchlists(db: Session, line_target_id: str, stock_symbol: str) -> int:

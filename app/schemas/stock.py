@@ -19,7 +19,4 @@ class StockQuote(BaseModel):
     previous_ma10: float | None = None
     previous_ma20: float | None = None
     previous_ma60: float | None = None
-    price_window_ago: float | None = None
-    intraday_change_percent: float | None = None
-    intraday_volume: float | None = None
     updated_at: datetime

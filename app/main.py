@@ -11,6 +11,7 @@ from app.scheduler.monitor import run_monitor
 from app.services.morning_scan_service import run_morning_gain_low_volume_scan
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 settings = get_settings()
 scheduler = AsyncIOScheduler()
 
