@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     line_channel_access_token: str | None = Field(default=None, alias="LINE_CHANNEL_ACCESS_TOKEN")
     line_channel_secret: str | None = Field(default=None, alias="LINE_CHANNEL_SECRET")
+    admin_api_token: str | None = Field(default=None, alias="ADMIN_API_TOKEN")
     database_url: str = Field(default="sqlite:///./stock_alert.db", alias="DATABASE_URL")
     monitor_interval_minutes: int = Field(default=5, alias="MONITOR_INTERVAL_MINUTES")
     monitor_interval_seconds: int | None = Field(default=90, alias="MONITOR_INTERVAL_SECONDS")

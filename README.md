@@ -7,6 +7,7 @@ FastAPI + LINE Messaging API 的台股監控 Bot，可在本機執行，使用 S
 - LINE Webhook：`POST /webhook`
 - 健康檢查：`GET /health`
 - 手動執行一般監控：`POST /admin/run-monitor`
+- LINE 訊息額度查詢：`GET /admin/line-quota`
 - 一般股價追蹤
 - 早盤急漲低量個股監控
 - 早盤全市場掃描通知
@@ -42,6 +43,7 @@ http://127.0.0.1:8000/health
 ```dotenv
 LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
 LINE_CHANNEL_SECRET=your_line_channel_secret
+ADMIN_API_TOKEN=change-this-to-a-long-random-secret
 
 DATABASE_URL=sqlite:///./stock_alert.db
 
@@ -61,6 +63,41 @@ APP_ENV=development
 ```
 
 注意：`.env` 建議使用 UTF-8 without BOM。
+
+## Admin API
+
+查詢 LINE 本月訊息額度：
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8000/admin/line-quota `
+  -Headers @{ "X-Admin-Token" = "change-this-to-a-long-random-secret" }
+```
+
+回傳範例：
+
+```json
+{
+  "quota": {
+    "type": "limited",
+    "limit": 200,
+    "raw": {
+      "type": "limited",
+      "value": 200
+    }
+  },
+  "usage": {
+    "total": 200,
+    "raw": {
+      "totalUsage": 200
+    }
+  },
+  "remaining": 0,
+  "is_exhausted": true
+}
+```
+
+`/admin/line-quota` 必須帶 `X-Admin-Token`。沒有 token 或 token 錯誤會回 `401 Unauthorized`；專案沒有設定 `ADMIN_API_TOKEN` 時會回 `403 Forbidden`。
 
 ## LINE 指令
 
